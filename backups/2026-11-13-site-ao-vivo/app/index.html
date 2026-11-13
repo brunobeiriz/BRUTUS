@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#11263f">
+  <meta name="application-name" content="BRZ/BRUTUS">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BRZ/BRUTUS">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="BRZ/BRUTUS — Controladoria Jurídica">
+  <title>BRZ/BRUTUS | Controladoria Jurídica</title>
+  <link rel="manifest" href="manifest.webmanifest?v=4.0">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css?v=4.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="loginScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand">
+      <h1 id="loginOfficeName">Escritório convidado</h1>
+      <p>Controladoria Jurídica</p>
+    </div>
+    <div id="loginMsg" class="msg hidden"></div>
+    <label>E-mail</label>
+    <input id="loginEmail" type="email" autocomplete="email" placeholder="seu@email.com">
+    <label>Senha</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Sua senha">
+    <button id="loginBtn" class="primary full-btn">Entrar</button>
+    <button class="secondary full-btn install-app-btn hidden" type="button">Instalar Controladoria</button>
+
+    <div class="public-import">
+      <div class="separator"><span>ou</span></div>
+      <div class="public-import-title">Importar JSON sem login</div>
+      <input id="publicFileInput" class="public-file-input" type="file" accept=".json,application/json">
+      <button id="publicSendBtn" class="primary full-btn" type="button">Enviar arquivo</button>
+      <div id="publicImportMsg" class="msg hidden"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+<header>
+  <div>
+    <h1 id="appOfficeTitle">Controladoria Jurídica — Escritório convidado</h1>
+    <p id="appSubtitle">Conferência, distribuição, revisão e controle de prazos</p>
+  </div>
+  <div class="userbox">
+    <span id="userName">Usuário</span>
+    <small id="userRole"></small>
+    <button id="logoutBtn" class="ghost">Sair</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <button id="newTaskBtn" class="primary">+ Nova tarefa</button>
+    <button id="newPendingBtn" class="primary">+ Nova pendência</button>
+    <button id="importBtn" class="secondary">Importar relatório</button>
+    <button id="exportBtn" class="secondary">Exportar CSV</button>
+    <button id="clearLastImportBtn" class="secondary admin-only">Limpar última lista</button>
+    <button id="clearBaseBtn" class="dangerBtn admin-only">Limpar tudo</button>
+    <button id="officeSettingsBtn" class="secondary admin-only" type="button">Identidade do escritório</button>
+    <button class="secondary install-app-btn hidden" type="button">Instalar aplicativo</button>
+    <span id="pendingImportBadge" class="pending-import-badge admin-only hidden">0 importações pendentes</span>
+    <input id="fileInput" type="file" accept=".json" hidden>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="dashboard">Dashboard</button>
+    <button class="tab admin-only" data-view="conferencia">Conferência</button>
+    <button class="tab" data-view="equipe">Equipe / Prazos</button>
+    <button class="tab" data-view="historico">Histórico</button>
+  </div>
+
+  <section id="dashboard" class="view active">
+    <div class="cards">
+      <div class="card metric-card" data-metric="active" tabindex="0"><div class="label">Ativas</div><div class="value" id="mActive">0</div><small>não concluídas</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card" data-metric="review" tabindex="0"><div class="label">A conferir</div><div class="value" id="mReview">0</div><small>aguardando validação</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card" data-metric="late" tabindex="0"><div class="label">Vencidas</div><div class="value" id="mLate">0</div><small>prazo interno/judicial</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card pending-dashboard-card" data-metric="pendingInitial" tabindex="0"><div class="label">Iniciais pendentes</div><div class="value" id="mPendingInitial">0</div><small>elaboração / distribuição</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card" data-metric="urgent" tabindex="0"><div class="label">Urgentes</div><div class="value" id="mUrgent">0</div><small>prioridade crítica</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card" data-metric="filed" tabindex="0"><div class="label">Protocoladas</div><div class="value" id="mFiled">0</div><small>aguardam encerramento</small><span class="card-link">Ver lista</span></div>
+      <div class="card metric-card" data-metric="done" tabindex="0"><div class="label">Cumprimento</div><div class="value" id="mRate">0%</div><small>concluídas</small><span class="card-link">Ver concluídas</span></div>
+    </div>
+    <div class="grid">
+      <section class="panel"><h2>Painel geral de prazos</h2><div id="generalTable"></div></section>
+      <aside class="panel"><h2>Desempenho por colaborador</h2><div class="side" id="ownersPanel"></div></aside>
+    </div>
+    <section class="panel recent-imports-panel">
+      <h2>Últimas importações</h2>
+      <div class="hint">As três importações processadas mais recentes.</div>
+      <div id="recentImports" class="recent-imports"></div>
+    </section>
+  </section>
+
+  <section id="conferencia" class="view">
+    <section class="panel">
+      <h2>Fila de conferência da controladoria</h2>
+      <div class="hint">Itens importados pelo Claude entram como “Aguardando conferência”. Valide processo, providência e prazo judicial; depois defina o prazo interno e o responsável.</div>
+      <div id="reviewTable"></div>
+    </section>
+  </section>
+
+  <section id="equipe" class="view">
+    <section class="panel">
+      <h2>Distribuição e execução pela equipe</h2>
+      <div class="filters">
+        <input id="search" placeholder="Processo, cliente ou tarefa...">
+        <select id="fOwner"><option value="">Todos responsáveis</option></select>
+        <select id="fStatus"><option value="">Todos status</option></select>
+        <select id="fPriority"><option value="">Todas prioridades</option><option>URGENTE</option><option>ALTA</option><option>NORMAL</option><option>ACOMPANHAMENTO</option><option>CONFERÊNCIA</option></select>
+        <select id="fDue"><option value="">Todos vencimentos</option><option value="late">Vencidos</option><option value="today">Hoje</option><option value="7">Próximos 7 dias</option></select>
+      </div>
+      <div id="teamTable"></div>
+    </section>
+  </section>
+
+  <section id="historico" class="view">
+    <section class="panel">
+      <h2>Histórico de alterações</h2>
+      <div id="historyTable"></div>
+    </section>
+  </section>
+</div>
+
+<div class="modal" id="officeSettingsModal">
+  <div class="box setup-box">
+    <h2>Identidade do escritório</h2>
+    <p class="modal-copy">Defina como o ambiente será apresentado aos usuários. Esta configuração poderá ser alterada pelo administrador.</p>
+    <div class="form">
+      <div class="full"><label>Nome do escritório</label><input id="officeNameInput" maxlength="120" placeholder="Ex.: Almeida Advocacia"></div>
+      <div><label>Nome do sistema</label><input id="systemNameInput" maxlength="60" value="BRZ/BRUTUS"></div>
+      <div><label>Descrição</label><input id="officeSubtitleInput" maxlength="160" value="Conferência, distribuição, revisão e controle de prazos"></div>
+    </div>
+    <div class="actions"><button id="cancelOfficeSettingsBtn" class="secondary" type="button">Cancelar</button><button id="saveOfficeSettingsBtn" class="primary" type="button">Salvar identidade</button></div>
+  </div>
+</div>
+
+<div class="modal" id="feedbackModal">
+  <div class="box feedback-box">
+    <span class="feedback-kicker" id="feedbackCycleLabel">5º dia efetivo de uso</span>
+    <h2>Como está sendo sua experiência?</h2>
+    <p class="modal-copy">Por se tratar de um ambiente de teste, sua avaliação importa. Mantenha-nos informados sobre dificuldades e sugestões de melhoria.</p>
+    <label>Avaliação</label>
+    <div class="rating" id="feedbackRating" role="radiogroup" aria-label="Avaliação de 1 a 5 estrelas">
+      <button type="button" data-rating="1" aria-label="1 estrela">★</button><button type="button" data-rating="2" aria-label="2 estrelas">★</button><button type="button" data-rating="3" aria-label="3 estrelas">★</button><button type="button" data-rating="4" aria-label="4 estrelas">★</button><button type="button" data-rating="5" aria-label="5 estrelas">★</button>
+    </div>
+    <label for="feedbackSuggestion">Sugestão de melhoria</label>
+    <textarea id="feedbackSuggestion" rows="4" maxlength="1500" placeholder="Conte-nos o que facilitaria sua rotina."></textarea>
+    <div id="feedbackMsg" class="msg hidden"></div>
+    <div class="actions"><button id="dismissFeedbackBtn" class="secondary" type="button">Lembrar depois</button><button id="sendFeedbackBtn" class="primary" type="button">Enviar avaliação</button></div>
+  </div>
+</div>
+
+
+<div class="modal" id="metricModal">
+  <div class="box metric-box">
+    <div class="metric-modal-head">
+      <div>
+        <h2 id="metricModalTitle">Lista</h2>
+        <p id="metricModalSubtitle"></p>
+      </div>
+      <button id="closeMetricBtn" class="secondary" type="button">Fechar</button>
+    </div>
+    <div id="metricModalContent"></div>
+  </div>
+</div>
+
+<div class="modal" id="taskModal">
+  <div class="box">
+    <h2 id="modalTitle">Tarefa</h2>
+    <div class="form">
+      <div><label>Processo</label><input id="processo"></div>
+      <div><label>Cliente</label><input id="cliente"></div>
+      <div class="full pending-check-wrap">
+        <label class="pending-check-label"><input id="isPendingInitial" type="checkbox"> <span>Inicial pendente de elaboração / distribuição</span></label>
+      </div>
+      <div class="full"><label>Providência</label><textarea id="providencia" rows="3"></textarea></div>
+      <div><label>Prioridade</label><select id="prioridade"><option>URGENTE</option><option>ALTA</option><option>NORMAL</option><option>ACOMPANHAMENTO</option><option>CONFERÊNCIA</option></select></div>
+      <div><label>Responsável</label><select id="responsavel"><option value="">Não atribuído</option></select></div>
+      <div><label>Prazo judicial</label><input id="prazoJudicial" type="date"></div>
+      <div><label>Prazo interno</label><input id="prazoInterno" type="date"></div>
+      <div><label>Status</label><select id="status"></select></div>
+      <div><label>Conferência</label><select id="conferido"><option value="false">Aguardando conferência</option><option value="true">Conferido pela controladoria</option></select></div>
+      <div class="full"><label>Origem / ato processual</label><textarea id="origem" rows="2"></textarea></div>
+      <div class="full"><label>Observações</label><textarea id="observacoes" rows="3"></textarea></div>
+      <div class="full"><label>Protocolo / observação final</label><textarea id="protocolo" rows="2" placeholder="Ex.: protocolado em 16/09/2026 às 14:32, ID..."></textarea></div>
+    </div>
+    <div class="actions">
+      <button id="deleteBtn" class="dangerBtn">Excluir</button>
+      <button id="cancelBtn" class="secondary">Cancelar</button>
+      <button id="saveBtn" class="primary">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<div id="installHelp" class="install-help hidden" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle">
+  <div class="install-help-card">
+    <button id="closeInstallHelp" class="install-help-close" type="button" aria-label="Fechar">×</button>
+    <h2 id="installHelpTitle">Instalar Controladoria</h2>
+    <p>No iPhone, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>.</p>
+    <p>No Android, abra o menu do navegador e escolha <strong>Instalar aplicativo</strong>.</p>
+  </div>
+</div>
+
+<script src="app.js?v=4.0"></script>
+<script src="pwa.js?v=4.0"></script>
+</body>
+</html>
