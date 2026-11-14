@@ -1,0 +1,63 @@
+name: Publicar SaaS no FTP (BRZ/BRUTUS)
+
+# Publicação somente manual (Actions > Publicar SaaS no FTP > Run workflow, ou por solicitação ao Claude).
+# Faz, nesta ordem: backup dos arquivos atuais do servidor (guardado como artefato por 90 dias),
+# envio de SOMENTE os 7 arquivos do site e conferência do que ficou no ar.
+# Não apaga nada e não toca em office/, vendas/, massafalida/, controladoria/, app/icons nem no service-worker.js.
+# Requer os segredos do repositório: FTP_HOST, FTP_USER e FTP_PASS (mesma conta do brz.adv.br).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch a publicar"
+        default: claude/site-login-only
+        required: true
+      confirmar:
+        description: "Digite PUBLICAR para confirmar"
+        required: true
+
+concurrency:
+  group: deploy-saas-ftp
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir confirmação
+        run: |
+          [ "${{ inputs.confirmar }}" = "PUBLICAR" ] || { echo "Confirmação ausente: digite PUBLICAR."; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Conferir pacote
+        run: |
+          test -f site/index.html && test -f site/app/index.html && test -f site/app/app.js
+          node --check site/app/app.js
+          ! grep -q "Importar JSON sem login" site/app/index.html
+
+      - name: Backup dos arquivos atuais do servidor
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: scripts/publicar_saas_ftp.sh backup
+
+      - name: Guardar o backup (90 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-saas-${{ github.run_id }}
+          path: backup-servidor/
+          retention-days: 90
+
+      - name: Enviar os 7 arquivos
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: scripts/publicar_saas_ftp.sh publicar
+
+      - name: Conferir o site no ar
+        run: scripts/publicar_saas_ftp.sh verificar
