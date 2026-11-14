@@ -1,4 +1,6 @@
 
+// O link de convite ou de recuperação de senha traz o tipo na parte # do endereço; guarda antes de o cliente limpá-la.
+const FLUXO_LINK=new URLSearchParams(location.hash.slice(1));
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const STATUSES=["Importado pelo Claude","Aguardando conferência","Conferido","Distribuído","Em elaboração","Aguardando revisão","Revisado","Protocolado","Concluído"];
 let sessionUser=null, profile=null, tasks=[], profiles=[], historyRows=[], editing=null;
@@ -41,11 +43,21 @@ async function init(){
   $("status").innerHTML=STATUSES.map(x=>`<option>${x}</option>`).join("");
   bindEvents();
   await loadOfficeSettings();
+  const tipoLink=FLUXO_LINK.get("type");
+  if(FLUXO_LINK.get("error_description")){
+    showLoginMsg("O link expirou ou já foi usado. Digite seu e-mail e toque em \"Esqueci minha senha\" para receber outro.");
+    history.replaceState(null,"",location.pathname);
+  }
   const {data:{session}}=await sb.auth.getSession();
+  if(session&&(tipoLink==="invite"||tipoLink==="recovery")){showPasswordScreen();return}
   if(session) await startApp(session.user);
 }
 function bindEvents(){
   $("loginBtn").onclick=login;
+  $("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+  $("forgotBtn").onclick=forgotPassword;
+  $("savePasswordBtn").onclick=savePassword;
+  ["newPassword","newPassword2"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter")savePassword()}));
   $("logoutBtn").onclick=()=>sb.auth.signOut().then(()=>location.reload());
   $("newTaskBtn").onclick=()=>openTask(null,"task");$("newPendingBtn").onclick=()=>openTask(null,"pending");$("importBtn").onclick=()=>$("fileInput").click();$("fileInput").onchange=importJSON;
   document.querySelectorAll(".metric-card").forEach(card=>{
@@ -184,6 +196,37 @@ async function login(){
   $("loginMsg").classList.add("hidden");
   const {data,error}=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});
   if(error){$("loginMsg").textContent=error.message;$("loginMsg").classList.remove("hidden");return}
+  await startApp(data.user);
+}
+function showLoginMsg(text,type=""){const el=$("loginMsg");el.textContent=text;el.className=`msg ${type}`;el.classList.remove("hidden")}
+async function forgotPassword(){
+  const email=$("loginEmail").value.trim();
+  if(!email){showLoginMsg("Digite seu e-mail no campo acima e toque em \"Esqueci minha senha\" de novo.");return}
+  const btn=$("forgotBtn");btn.disabled=true;
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  btn.disabled=false;
+  if(error&&/rate|seconds|limit/i.test(error.message)){showLoginMsg("Aguarde um instante antes de pedir um novo link.");return}
+  showLoginMsg("Se este e-mail tiver cadastro, enviaremos um link para definir uma nova senha. Confira também a caixa de spam.","success");
+}
+function showPasswordScreen(){
+  $("loginScreen").classList.add("hidden");$("passwordScreen").classList.remove("hidden");$("newPassword").focus();
+}
+async function savePassword(){
+  const msg=$("passwordMsg"),p1=$("newPassword").value,p2=$("newPassword2").value;
+  const falha=t=>{msg.textContent=t;msg.className="msg";msg.classList.remove("hidden")};
+  if(p1.length<10) return falha("A senha precisa ter pelo menos 10 caracteres.");
+  if(!/[A-Za-z]/.test(p1)||!/\d/.test(p1)) return falha("Use letras e números na senha.");
+  if(p1!==p2) return falha("As duas senhas não são iguais.");
+  const btn=$("savePasswordBtn");btn.disabled=true;btn.textContent="Salvando...";
+  const {data,error}=await sb.auth.updateUser({password:p1});
+  btn.disabled=false;btn.textContent="Salvar senha e entrar";
+  if(error){
+    if(error.code==="weak_password") return falha("Senha considerada fraca. Escolha outra, mais longa e menos comum.");
+    if(/same/i.test(error.message)) return falha("Escolha uma senha diferente da anterior.");
+    return falha("Não foi possível salvar a senha: "+error.message);
+  }
+  history.replaceState(null,"",location.pathname);
+  $("passwordScreen").classList.add("hidden");
   await startApp(data.user);
 }
 async function startApp(user){

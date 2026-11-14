@@ -30,7 +30,23 @@
     <label>Senha</label>
     <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Sua senha">
     <button id="loginBtn" class="primary full-btn">Entrar</button>
+    <button id="forgotBtn" class="link-btn" type="button">Esqueci minha senha</button>
     <button class="secondary full-btn install-app-btn hidden" type="button">Instalar Controladoria</button>
+  </div>
+</div>
+
+<div id="passwordScreen" class="auth-screen hidden">
+  <div class="auth-card">
+    <div class="brand">
+      <h1>Defina sua senha</h1>
+      <p>Escolha uma senha para acessar o BRZ/BRUTUS.</p>
+    </div>
+    <div id="passwordMsg" class="msg hidden"></div>
+    <label>Nova senha</label>
+    <input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 10 caracteres, com letras e números">
+    <label>Repita a senha</label>
+    <input id="newPassword2" type="password" autocomplete="new-password" placeholder="Repita a senha">
+    <button id="savePasswordBtn" class="primary full-btn">Salvar senha e entrar</button>
   </div>
 </div>
 
