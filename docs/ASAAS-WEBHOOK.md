@@ -16,11 +16,12 @@ ou contestação. Código em `supabase/functions/asaas-webhook/`. Banco: migrati
 ## Implantação (nesta ordem; fazer backup antes, conforme docs/PUBLICACAO.md)
 
 1. Revisar e aplicar a migration no projeto `brz brutus` (`umyynipwixjulrgqbfvm`).
-2. Definir os segredos da função (o valor é digitado no painel do Supabase, nunca no chat):
-   - `ASAAS_WEBHOOK_TOKEN`: um texto longo e aleatório (o mesmo que será cadastrado no Asaas).
+2. Definir o segredo da função (o valor é digitado no painel do Supabase, nunca no chat):
    - `ASAAS_API_KEY`: chave de API do Asaas (sandbox no início).
-   - `ASAAS_BASE_URL`: `https://api-sandbox.asaas.com/v3` (sandbox). Em produção, a URL de produção do Asaas.
-   - `APP_URL`: `https://www.brz.adv.br/app/` (opcional).
+   - Opcionais: `ASAAS_BASE_URL` (padrão: sandbox; em produção, a URL de produção) e `APP_URL`.
+   - O token do webhook NÃO é um segredo da função: fica no Vault do banco (`vault.secrets`, nome `asaas_webhook_token`)
+     e é lido pela função `obter_webhook_token()`. Para trocar: `select vault.update_secret(<id>, '<novo>')`,
+     e atualizar o token no webhook do Asaas.
 3. Publicar a função `asaas-webhook` com a verificação de JWT DESLIGADA (o Asaas não envia JWT; a segurança é o token).
 4. No painel do Asaas (Integrações, Webhooks), cadastrar:
    - URL: `https://umyynipwixjulrgqbfvm.supabase.co/functions/v1/asaas-webhook`
@@ -37,3 +38,10 @@ ou contestação. Código em `supabase/functions/asaas-webhook/`. Banco: migrati
 - Se o convite for enviado e a gravação do perfil falhar, o reenvio do evento acusa "e-mail já cadastrado" e exige correção manual.
 - Eventos de atraso (`PAYMENT_OVERDUE`) são ignorados: o acesso é regido pela vigência do plano.
 - O envio de e-mail usa o remetente padrão do Supabase até configurarmos um remetente próprio.
+
+## Estado em 14/11/2026 (sandbox)
+
+- Migrations `planos_e_provisionamento`, `webhook_token_no_vault` e `escritorios_grants_e_search_path` aplicadas em `brz brutus`.
+- Função `asaas-webhook` publicada (JWT desligado). Testada: recusa sem token (401), método errado (405), evento duplicado, evento irrelevante.
+- Webhook cadastrado no sandbox do Asaas (5 eventos). Links de pagamento de teste criados, com preços PROVISÓRIOS; `planos.ativo = false`.
+- Falta: segredo `ASAAS_API_KEY` no Supabase e o teste de compra completo.

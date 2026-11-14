@@ -1,7 +1,8 @@
 // Webhook do Asaas: cria o escritório e o acesso do contratante quando o pagamento é confirmado,
 // e suspende o acesso em estorno ou contestação (chargeback).
-// Segredos necessários: ASAAS_WEBHOOK_TOKEN, ASAAS_API_KEY (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem).
-// Opcionais: ASAAS_BASE_URL (padrão: sandbox) e APP_URL.
+// Segredo necessário: ASAAS_API_KEY (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem).
+// O token do webhook fica no Vault do banco (função obter_webhook_token); a variável ASAAS_WEBHOOK_TOKEN,
+// se existir, tem prioridade. Opcionais: ASAAS_BASE_URL (padrão: sandbox) e APP_URL.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
   decidirAcao,
@@ -27,7 +28,12 @@ const resposta = (status: number, corpo: Record<string, unknown>) =>
 Deno.serve(async (req) => {
   if (req.method !== "POST") return resposta(405, { erro: "método não permitido" });
 
-  if (!tokenValido(req.headers.get("asaas-access-token"), env("ASAAS_WEBHOOK_TOKEN"))) {
+  const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false },
+  });
+
+  const esperado = Deno.env.get("ASAAS_WEBHOOK_TOKEN") ?? await tokenDoCofre(db);
+  if (!tokenValido(req.headers.get("asaas-access-token"), esperado)) {
     return resposta(401, { erro: "não autorizado" });
   }
 
@@ -38,10 +44,6 @@ Deno.serve(async (req) => {
     return resposta(400, { erro: "corpo inválido" });
   }
   if (!ev?.id || !ev?.event) return resposta(400, { erro: "evento inválido" });
-
-  const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
-    auth: { persistSession: false },
-  });
 
   // Idempotência: o mesmo evento nunca é processado duas vezes.
   const reg = await db.from("asaas_eventos").insert({ id: ev.id, tipo: ev.event, payload: ev });
@@ -71,6 +73,11 @@ Deno.serve(async (req) => {
     return resposta(500, { erro: msg }); // o Asaas reenvia
   }
 });
+
+async function tokenDoCofre(db: SupabaseClient): Promise<string> {
+  const r = await db.rpc("obter_webhook_token");
+  return typeof r.data === "string" ? r.data : "";
+}
 
 async function processar(db: SupabaseClient, ev: Evento): Promise<string | null> {
   const p = ev.payment;
