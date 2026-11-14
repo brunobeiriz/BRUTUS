@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { decidirAcao, emailValido, tokenValido } from "./logica.ts";
+import { decidirAcao, descreverErro, emailValido, tokenValido } from "./logica.ts";
 
 const pag = { id: "pay_1", customer: "cus_1" };
 
@@ -26,4 +26,11 @@ Deno.test("e-mail válido", () => {
   assert(!emailValido("sem-arroba"));
   assert(!emailValido("a@b"));
   assert(!emailValido(null));
+});
+
+Deno.test("descreve erros de qualquer forma", () => {
+  assertEquals(descreverErro(new Error("falhou")), "falhou");
+  assertEquals(descreverErro({ message: "permission denied", code: "42501" }), "permission denied [42501]");
+  assertEquals(descreverErro({ foo: 1 }), '{"foo":1}');
+  assertEquals(descreverErro("texto"), "texto");
 });

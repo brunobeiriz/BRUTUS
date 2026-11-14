@@ -53,3 +53,15 @@ export function emailValido(v: unknown): v is string {
 // Falha que não adianta repetir (dado do cliente inválido, plano desconhecido):
 // o webhook responde 200 e registra o erro, para o Asaas não reenviar em loop.
 export class ErroPermanente extends Error {}
+
+// Texto legível para qualquer erro, inclusive os objetos simples que o cliente do banco devolve.
+export function descreverErro(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const partes = [o.message, o.details, o.hint].filter((x) => typeof x === "string" && x);
+    const codigo = o.code ? ` [${o.code}]` : "";
+    return (partes.join(" | ") || JSON.stringify(e)) + codigo;
+  }
+  return String(e);
+}

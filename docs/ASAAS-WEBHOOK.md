@@ -35,7 +35,8 @@ ou contestação. Código em `supabase/functions/asaas-webhook/`. Banco: migrati
 ## Limitações conhecidas
 
 - Se o e-mail do comprador já tiver cadastro no sistema, o evento é marcado com erro e precisa de tratamento manual.
-- Se o convite for enviado e a gravação do perfil falhar, o reenvio do evento acusa "e-mail já cadastrado" e exige correção manual.
+- Se o convite for enviado e a gravação do perfil falhar, o reenvio do evento completa o perfil (a função reaproveita o usuário existente).
+- O link do e-mail de acesso leva ao `/app/`: o app precisa de uma tela para o contratante DEFINIR A SENHA (pendente), e o Supabase precisa ter `https://www.brz.adv.br/app/` nas URLs de redirecionamento permitidas.
 - Eventos de atraso (`PAYMENT_OVERDUE`) são ignorados: o acesso é regido pela vigência do plano.
 - O envio de e-mail usa o remetente padrão do Supabase até configurarmos um remetente próprio.
 
@@ -44,4 +45,6 @@ ou contestação. Código em `supabase/functions/asaas-webhook/`. Banco: migrati
 - Migrations `planos_e_provisionamento`, `webhook_token_no_vault` e `escritorios_grants_e_search_path` aplicadas em `brz brutus`.
 - Função `asaas-webhook` publicada (JWT desligado). Testada: recusa sem token (401), método errado (405), evento duplicado, evento irrelevante.
 - Webhook cadastrado no sandbox do Asaas (5 eventos). Links de pagamento de teste criados, com preços PROVISÓRIOS; `planos.ativo = false`.
-- Falta: segredo `ASAAS_API_KEY` no Supabase e o teste de compra completo.
+- Segredo `ASAAS_API_KEY` informado. Teste simulado de ponta a ponta OK (escritório semestral criado, 3 usuários, vigência de 6 meses, perfil de administrador, convite enviado, sem duplicar em eventos repetidos).
+- Migration `grants_profiles_e_achar_usuario` aplicada (permissões do webhook em `profiles` e busca de usuário por e-mail).
+- Falta: tela de definir senha no app, URLs de redirecionamento do Auth, teste com pagamento real de cartão de teste e limpeza dos dados de teste.

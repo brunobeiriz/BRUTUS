@@ -6,6 +6,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
   decidirAcao,
+  descreverErro,
   emailValido,
   ErroPermanente,
   type Evento,
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
     }).eq("id", ev.id);
     return resposta(200, { ok: true });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = descreverErro(e);
     await db.from("asaas_eventos").update({ erro: msg.slice(0, 1000) }).eq("id", ev.id);
     if (e instanceof ErroPermanente) {
       await db.from("asaas_eventos").update({ processado: true, processado_em: new Date().toISOString() })
@@ -120,16 +121,24 @@ async function ativar(db: SupabaseClient, p: Pagamento): Promise<string> {
   if (prov.error) throw prov.error;
   const escritorioId = prov.data as string;
 
-  // Cria o usuário e envia o e-mail de autenticação para ele definir a senha.
-  const convite = await db.auth.admin.inviteUserByEmail(email, { data: { nome }, redirectTo: APP_URL });
-  if (convite.error) {
-    if (/already|registered|exists/i.test(convite.error.message)) {
-      throw new ErroPermanente(`O e-mail ${email} já possui cadastro; tratar manualmente`);
+  // Reaproveita o usuário se o e-mail já existir; senão cria e envia o e-mail para definir a senha.
+  const achado = await db.rpc("achar_usuario_por_email", { p_email: email });
+  if (achado.error) throw achado.error;
+  let usuarioId = achado.data as string | null;
+  if (usuarioId) {
+    const outro = await db.from("profiles").select("escritorio_id").eq("id", usuarioId).maybeSingle();
+    if (outro.error) throw outro.error;
+    if (outro.data && outro.data.escritorio_id !== escritorioId) {
+      throw new ErroPermanente(`O e-mail ${email} já pertence a outro escritório; tratar manualmente`);
     }
-    throw convite.error;
+    if (outro.data) return escritorioId;
+  } else {
+    const convite = await db.auth.admin.inviteUserByEmail(email, { data: { nome }, redirectTo: APP_URL });
+    if (convite.error) throw convite.error;
+    usuarioId = convite.data.user.id;
   }
   const perfil = await db.from("profiles").insert({
-    id: convite.data.user.id,
+    id: usuarioId,
     nome,
     email,
     role: "admin",
