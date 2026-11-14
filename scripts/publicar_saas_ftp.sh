@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Publica o site do SaaS BRZ/BRUTUS (pasta site/) por FTP, sem apagar nada no servidor.
 # Uso: publicar_saas_ftp.sh backup | publicar | verificar
-# Variáveis: FTP_HOST, FTP_USER, FTP_PASS (obrigatórias); FTP_PORTA, RAIZ_REMOTA, BASE_SITE, ORIGEM, BACKUP_DIR (opcionais).
+# Variáveis: FTP_HOST, FTP_USER, FTP_PASS (obrigatórias para backup e publicar; a conferência não precisa); FTP_PORTA, RAIZ_REMOTA, BASE_SITE, ORIGEM, BACKUP_DIR (opcionais).
 #
 # Só os 7 arquivos abaixo são tocados. A pasta app/icons, o service-worker.js e as pastas
 # office/, vendas/, massafalida/ e controladoria/ NÃO são alteradas.
 set -euo pipefail
 
-: "${FTP_HOST:?FTP_HOST ausente}" "${FTP_USER:?FTP_USER ausente}" "${FTP_PASS:?FTP_PASS ausente}"
 FTP_PORTA="${FTP_PORTA:-21}"
 RAIZ_REMOTA="${RAIZ_REMOTA:-public_html}"
 BASE_SITE="${BASE_SITE:-https://www.brz.adv.br}"
@@ -24,9 +23,14 @@ ARQUIVOS=(
   app/manifest.webmanifest
 )
 
+exigir_ftp() {
+  : "${FTP_HOST:?FTP_HOST ausente}" "${FTP_USER:?FTP_USER ausente}" "${FTP_PASS:?FTP_PASS ausente}"
+}
+
 url_ftp() { printf 'ftp://%s:%s/%s/%s' "$FTP_HOST" "$FTP_PORTA" "$RAIZ_REMOTA" "$1"; }
 
 backup() {
+  exigir_ftp
   mkdir -p "$BACKUP_DIR"
   for f in "${ARQUIVOS[@]}"; do
     mkdir -p "$BACKUP_DIR/$(dirname "$f")"
@@ -49,6 +53,7 @@ backup() {
 }
 
 publicar() {
+  exigir_ftp
   for f in "${ARQUIVOS[@]}"; do
     [ -f "$ORIGEM/$f" ] || { echo "ERRO: falta $ORIGEM/$f" >&2; exit 1; }
   done
