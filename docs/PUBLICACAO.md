@@ -11,3 +11,21 @@ Antes de enviar qualquer arquivo ao servidor, sempre nesta ordem:
 7. **Se algo falhar**, restaurar a cópia do passo 3.
 
 Credenciais do FTP ficam apenas nas variáveis do ambiente e nunca neste repositório.
+
+
+## Como cada projeto é publicado (situação em 14/11/2026)
+
+Cada projeto tem a sua própria publicação por git (GitHub Actions, sempre manual), com a sua pasta de destino:
+
+| Projeto | Repositório | Pasta no servidor | Backup antes de publicar |
+|---|---|---|---|
+| SaaS BRZ/BRUTUS | `BRUTUS` (automação `Publicar SaaS no FTP`) | só 7 arquivos: `public_html/index.html` e `public_html/app/*` | Sim, automático (artefato por 90 dias) |
+| Controladoria | `controladoria-interna` | `public_html/controladoria/` | Não (cópia de segurança no Dropbox pelo CLI) |
+| Massa Falida | `controladoria-interna` | `public_html/massafalida/` | Não |
+| Office | `brz-office` | `public_html/office/` | Não |
+| Larissa Beiriz | `larissa-advocacia` (servidor próprio, outra conta) | `public_html/` da conta dela | Sim, automático (artefato por 90 dias) |
+| Vendas | removido em 14/11/2026 | pasta apagada do servidor (backup em artefato por 90 dias) | n/a |
+
+O SaaS e a Larissa estão em contas de hospedagem diferentes (servidores `191.252.83.184` e `179.188.55.60`): uma publicação nunca atinge a outra.
+Para acionar a do SaaS: Actions > Publicar SaaS no FTP > Run workflow, informando `PUBLICAR`. Os segredos `FTP_HOST`, `FTP_USER` e `FTP_PASS` ficam no próprio repositório.
+O script usado é `scripts/publicar_saas_ftp.sh` (`backup`, `publicar`, `verificar`).
